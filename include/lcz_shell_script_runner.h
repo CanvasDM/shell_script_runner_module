@@ -23,9 +23,10 @@ extern "C" {
  * The script will stop running on the first error it encounters.
  *
  * @param path full path to the script file
+ * @param shell shell to print command responses to. If NULL, no command responses will be printed.
  * @return int 0 on success < 0 on error
  */
-int lcz_zsh_run_script(const char* path);
+int lcz_zsh_run_script(const char* path, const struct shell *shell);
 
 #ifdef __cplusplus
 }

@@ -88,7 +88,7 @@ static int cmd_run_script(const struct shell *shell, size_t argc, char **argv)
 {
 	int ret;
 
-	ret = lcz_zsh_run_script((const char *)argv[1]);
+	ret = lcz_zsh_run_script((const char *)argv[1], shell);
 	if (ret < 0) {
 		shell_error(shell, "Error [%d]", ret);
 	} else {
@@ -100,12 +100,11 @@ static int cmd_run_script(const struct shell *shell, size_t argc, char **argv)
 /**************************************************************************************************/
 /* Global Function Definitions                                                                    */
 /**************************************************************************************************/
-int lcz_zsh_run_script(const char *path)
+int lcz_zsh_run_script(const char *path, const struct shell *shell)
 {
-	const struct shell *shell;
+	const struct shell *dummy_shell;
 	char cmd_buf[CONFIG_LCZ_ZSH_CMD_MAX_SIZE];
-	char result_file_path[sizeof(CONFIG_LCZ_ZSH_PATH_MAX_SIZE) +
-			      sizeof(SHELL_OUTPUT_FILE_SUFFIX)];
+	char result_file_path[CONFIG_LCZ_ZSH_PATH_MAX_SIZE + sizeof(SHELL_OUTPUT_FILE_SUFFIX)];
 	const char *cmd_resp_buf;
 	size_t cmd_resp_size;
 	struct fs_file_t script;
@@ -125,8 +124,18 @@ int lcz_zsh_run_script(const char *path)
 
 	/* create and override result file */
 	fs_file_t_init(&result_file);
-	(void)snprintk(result_file_path, sizeof(result_file_path), "%s%s", path,
+	ret = snprintk(result_file_path, sizeof(result_file_path), "%s%s", path,
 		       SHELL_OUTPUT_FILE_SUFFIX);
+	if (ret < 0) {
+		LOG_ERR("Could not create result file path [%d]", ret);
+		goto done;
+	}
+	if (ret >= sizeof(result_file_path)) {
+		LOG_ERR("Result file truncated [%s]", result_file_path);
+		ret = -EINVAL;
+		goto done;
+	}
+	LOG_DBG("Creating result file %s", result_file_path);
 	ret = fs_open(&result_file, result_file_path, FS_O_WRITE | FS_O_CREATE);
 	if (ret < 0) {
 		LOG_ERR("Could not open %s", result_file_path);
@@ -142,7 +151,7 @@ int lcz_zsh_run_script(const char *path)
 	}
 
 	LOG_INF("Running script %s", path);
-	shell = shell_backend_dummy_get_ptr();
+	dummy_shell = shell_backend_dummy_get_ptr();
 	read_file = true;
 	while (read_file) {
 		bytes_read = 0;
@@ -169,11 +178,18 @@ int lcz_zsh_run_script(const char *path)
 		}
 
 		LOG_DBG("Executing [%s]", cmd_buf);
-		shell_backend_dummy_clear_output(shell);
+		shell_backend_dummy_clear_output(dummy_shell);
 		cmd_err = shell_execute_cmd(NULL, cmd_buf);
-		cmd_resp_buf = shell_backend_dummy_get_output(shell, &cmd_resp_size);
+		cmd_resp_buf = shell_backend_dummy_get_output(dummy_shell, &cmd_resp_size);
 		LOG_DBG("Result:\n\rReturn: %d\n\rResp size: %d\n\rresp: %s", cmd_err,
 			cmd_resp_size, cmd_resp_buf);
+		if (shell != NULL) {
+			if (cmd_err < 0) {
+				shell_error(shell, "%s", cmd_resp_buf);
+			} else {
+				shell_print(shell, "%s", cmd_resp_buf);
+			}
+		}
 		if (cmd_err < 0) {
 			script_err = true;
 			(void)snprintk(cmd_buf, sizeof(cmd_buf), "Err: %d\n", cmd_err);
