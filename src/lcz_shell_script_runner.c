@@ -147,6 +147,7 @@ int lcz_zsh_run_script(const char *path, const struct shell *shell)
 	ret = fs_open(&script, path, FS_O_READ);
 	if (ret < 0) {
 		LOG_ERR("Could not open %s", path);
+		script_err = true;
 		goto close_result_file;
 	}
 
