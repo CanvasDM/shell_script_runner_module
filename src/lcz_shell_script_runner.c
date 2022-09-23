@@ -33,6 +33,9 @@ LOG_MODULE_REGISTER(lcz_zsh, CONFIG_LCZ_SHELL_SCRIPT_RUNNER_LOG_LEVEL);
 #define SHELL_OUTPUT_FILE_SUFFIX ".out"
 #define COMMENT_START '#'
 
+#define HEADER_STRING "#!/zsh"
+#define MAX_HEADER_BYTES (strlen(HEADER_STRING) + 2) /* Space for a line terminator and a NUL */
+
 /**************************************************************************************************/
 /* Local Function Prototypes                                                                      */
 /**************************************************************************************************/
@@ -100,6 +103,39 @@ static int cmd_run_script(const struct shell *shell, size_t argc, char **argv)
 /**************************************************************************************************/
 /* Global Function Definitions                                                                    */
 /**************************************************************************************************/
+bool lcz_zsh_is_script(const char *path)
+{
+	int ret;
+	struct fs_file_t script;
+	size_t bytes_read;
+	char header_bytes[MAX_HEADER_BYTES];
+	bool retval = false;
+
+	/* Open the script file */
+	fs_file_t_init(&script);
+	ret = fs_open(&script, path, FS_O_READ);
+	if (ret < 0) {
+		LOG_ERR("lcz_zsh_is_script: Could not open %s: %d", path, ret);
+	} else {
+		/* Read the header of the file */
+		memset(header_bytes, 0, sizeof(header_bytes));
+		bytes_read = fs_read(&script, header_bytes, sizeof(header_bytes) - 1);
+
+		/* Check to see that the header matches and ends with a CR and/or LF */
+		if (bytes_read == sizeof(header_bytes)) {
+			if ((strncmp(header_bytes, HEADER_STRING, strlen(HEADER_STRING)) == 0) &&
+			    (is_crlf(header_bytes[strlen(HEADER_STRING)]))) {
+				retval = true;
+			}
+		}
+
+		/* Close the script file */
+		fs_close(&script);
+	}
+
+	return retval;
+}
+
 int lcz_zsh_run_script(const char *path, const struct shell *shell)
 {
 	const struct shell *dummy_shell;

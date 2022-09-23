@@ -16,6 +16,13 @@ extern "C" {
 /**************************************************************************************************/
 /* Global Function Prototypes                                                                     */
 /**************************************************************************************************/
+/**
+ * @brief Checks file for shell script header
+ *
+ * @param path full path to the suspected script file
+ * @return true if file contains the script header, false if not or an error occurred
+ */
+bool lcz_zsh_is_script(const char *path);
 
 /**
  * @brief Run a shell script.
