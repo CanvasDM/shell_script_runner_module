@@ -122,7 +122,7 @@ bool lcz_zsh_is_script(const char *path)
 		bytes_read = fs_read(&script, header_bytes, sizeof(header_bytes) - 1);
 
 		/* Check to see that the header matches and ends with a CR and/or LF */
-		if (bytes_read == sizeof(header_bytes)) {
+		if (bytes_read == (sizeof(header_bytes) - 1)) {
 			if ((strncmp(header_bytes, HEADER_STRING, strlen(HEADER_STRING)) == 0) &&
 			    (is_crlf(header_bytes[strlen(HEADER_STRING)]))) {
 				retval = true;
