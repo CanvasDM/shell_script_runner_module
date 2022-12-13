@@ -177,6 +177,12 @@ int lcz_zsh_run_script(const char *path, const struct shell *shell)
 		LOG_ERR("Could not open %s", result_file_path);
 		goto done;
 	}
+	/* File must be restarted if it already exists */
+	ret = fs_truncate(&result_file, 0);
+	if (ret < 0) {
+		LOG_ERR("Could not truncate file [%d]", ret);
+		goto done;
+	}
 
 	/* open file */
 	fs_file_t_init(&script);
